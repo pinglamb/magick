@@ -104,6 +104,46 @@ func (im *Image) Dispose() {
 	runtime.SetFinalizer(im, nil)
 }
 
+func (im *Image) GetImageBlob(info *Info) byte[] {
+	var ex C.ExceptionInfo
+	C.GetExceptionInfo(&ex)
+	defer C.DestroyExceptionInfo(&ex)
+	if info == nil {
+		info = NewInfo()
+	}
+	/* ImageToBlob copies the format from the image into
+	the image info. Overwrite if required and then restore
+	*/
+	im.mu.Lock()
+	var format *C.char
+	copied := false
+	if info.info.magick[0] != 0 {
+		copied = true
+		if im.image.magick[0] != 0 {
+			format = C.strdup(&im.image.magick[0])
+		}
+		C.strncpy(&im.image.magick[0], &info.info.magick[0], C.MaxTextExtent)
+	}
+	var s C.size_t
+	mem := imageToBlob(info, im, &s, &ex)
+	if copied {
+		/* Restore image format */
+		if format != nil {
+			C.strncpy(&im.image.magick[0], format, C.MaxTextExtent)
+			C.free(unsafe.Pointer(format))
+		} else {
+			C.memset(unsafe.Pointer(&im.image.magick[0]), 0, C.MaxTextExtent)
+		}
+	}
+	im.mu.Unlock()
+	if mem == nil {
+		return nil
+	}
+	b := goBytes(mem, int(s))
+	C.free(mem)
+	return b
+}
+
 // Encode writes the image to the given io.Writer, encoding
 // it according to the info parameter. Please, see the
 // Info type for the available encoding options.
