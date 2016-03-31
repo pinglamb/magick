@@ -104,7 +104,7 @@ func (im *Image) Dispose() {
 	runtime.SetFinalizer(im, nil)
 }
 
-func (im *Image) GetImageBlob(info *Info) byte[] {
+func (im *Image) GetImageBlob(info *Info) []byte {
 	var ex C.ExceptionInfo
 	C.GetExceptionInfo(&ex)
 	defer C.DestroyExceptionInfo(&ex)
